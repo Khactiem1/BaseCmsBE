@@ -23,6 +23,7 @@ builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 builder.Services.RegisterAppServices(builder.Configuration);
 builder.Services.InitConfigGlobal(builder.Configuration);
+builder.Services.ProcessCross();
 
 var app = builder.Build();
 
@@ -34,6 +35,7 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseMiddleware();
+app.ProcessCross();
 
 app.UseHttpsRedirection();
 
