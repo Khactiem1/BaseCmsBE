@@ -32,7 +32,7 @@ namespace Cms.Model.Enum
         Delete = 3,
 
         /// <summary>
-        /// Xoá
+        /// Togle active bản ghi
         /// </summary>
         Inactive = 4,
     }

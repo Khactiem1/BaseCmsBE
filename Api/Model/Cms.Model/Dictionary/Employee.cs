@@ -84,6 +84,11 @@ namespace Cms.Model
         public string? landline_phone { get; set; }
 
         /// <summary>
+        /// Số tiền
+        /// </summary>
+        public decimal? money { get; set; }
+
+        /// <summary>
         /// điạ chỉ email
         /// </summary>
         public string? employee_email { get; set; }

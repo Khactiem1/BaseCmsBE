@@ -295,8 +295,6 @@ namespace Cms.Model
                     dicValue = valueItem.Value<DateTime>().Date;
                     break;
                 case JTokenType.Integer:
-                    dicValue = valueItem.Value<int>();
-                    break;
                 case JTokenType.Float:
                     dicValue = valueItem.Value<decimal>();
                     break;
@@ -311,7 +309,7 @@ namespace Cms.Model
                     }
                     break;
                 default:
-                    dicValue = stringValue = valueItem.Value<string>().ToString();
+                    dicValue = stringValue = valueItem.Value<string>() != null ? valueItem.Value<string>().ToString() : valueItem.Value<string>();
                     //Kiểm tra kiểu dữ liệu khác như Guid, Bool
                     Guid guid;
                     if (Guid.TryParse(stringValue, out guid))
@@ -328,7 +326,7 @@ namespace Cms.Model
                     operatorAlias = " = ";
                     break;
                 case "contains":
-                    operatorAlias = " LIKE ";
+                    operatorAlias = " ILIKE ";
                     dicValue = $"%{ProcessLikeValue(dicValue.ToString())}%";
                     break;
                 case "notcontains":
@@ -340,7 +338,7 @@ namespace Cms.Model
                     }
                     break;
                 case "startswith":
-                    operatorAlias = " LIKE ";
+                    operatorAlias = " ILIKE ";
                     dicValue = $"{ProcessLikeValue(dicValue.ToString())}%";
                     break;
                 // UpdateBy TMChi 04/12/2019
@@ -354,7 +352,7 @@ namespace Cms.Model
                     }
                     break;
                 case "endswith":
-                    operatorAlias = " LIKE ";
+                    operatorAlias = " ILIKE ";
                     dicValue = $"%{ProcessLikeValue(dicValue.ToString())}";
                     break;
                 case "in":
@@ -372,7 +370,7 @@ namespace Cms.Model
                     }
                     paramNameAlias = $"({string.Join(",", listClause)})";
                     break;
-                case "is null":
+                case "isnull":
                     operatorAlias = " IS NULL ";
                     if (valueItem.Value<string>() == "text")
                     {
@@ -384,7 +382,7 @@ namespace Cms.Model
                         pattern = "{0} IS NULL";
                     }
                     break;
-                case "is not null":
+                case "notnull":
                     operatorAlias = " IS NOT NULL ";
                     paramNameAlias = "";
                     if (valueItem.Value<string>() == "text")
@@ -408,6 +406,11 @@ namespace Cms.Model
                         {
                             pattern = $"({{0}} is null OR {pattern})";
                         }
+                    }
+                    if (operatorValue == "=" && valueItem.Type == JTokenType.String)
+                    {
+                        operatorAlias = " ILIKE ";
+                        dicValue = $"{ProcessLikeValue(dicValue.ToString())}";
                     }
                     break;
                 case "!=":

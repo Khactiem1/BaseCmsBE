@@ -27,6 +27,7 @@ namespace CMS.Core.Web
             #region BL
 
             services.AddScoped<IEmployeeBL, EmployeeBL>();
+            services.AddScoped<ILayoutBL, LayoutBL>();
 
             #endregion
 
@@ -34,6 +35,7 @@ namespace CMS.Core.Web
             #region DL
 
             services.AddScoped<IEmployeeDL, EmployeeDL>();
+            services.AddScoped<ILayoutDL, LayoutDL>();
 
             #endregion
 
@@ -60,6 +62,27 @@ namespace CMS.Core.Web
         public static void UseMiddleware(this IApplicationBuilder app)
         {
             app.UseMiddleware<ErrorHandlingMiddleware>();
+        }
+
+        /// <summary>
+        /// Xử lý Cross
+        /// </summary>
+        /// <param name="services"></param>
+        public static void ProcessCross(this IServiceCollection services)
+        {
+            services.AddCors(options =>
+            {
+                options.AddPolicy("AllowAll", builder => builder.AllowAnyOrigin().AllowAnyMethod().AllowAnyHeader());
+            });
+        }
+
+        /// <summary>
+        /// Xử lý Cross
+        /// </summary>
+        /// <param name="app"></param>
+        public static void ProcessCross(this IApplicationBuilder app)
+        {
+            app.UseCors("AllowAll");
         }
     }
 }

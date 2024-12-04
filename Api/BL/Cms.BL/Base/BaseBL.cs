@@ -55,7 +55,9 @@ namespace Cms.BL
             string columns = ParamService.ParseColumn(pagingRequest.Columns);
             StringBuilder commandText = new StringBuilder($"SELECT {columns} FROM {viewName}");
             StringBuilder commandTextCount = new StringBuilder($"SELECT COUNT(1) FROM {viewName}");
+            string columnKey = typeof(T).GetPrimaryKeyFieldName();
             Dictionary<string, object> param = new Dictionary<string, object>();
+
             if (whereParameter != null)
             {
                 string whereString = whereParameter.GetWhereClause();
@@ -85,6 +87,14 @@ namespace Cms.BL
             if (!string.IsNullOrEmpty(sort))
             {
                 commandText.Append($" ORDER BY {sort}");
+            }
+            else
+            {
+                commandText.Append($" ORDER BY modified_date DESC");
+            }
+            if (!string.IsNullOrEmpty(columnKey)) // Bổ sung mặc định sort theo ID nữa
+            {
+                commandText.Append($", {columnKey} DESC");
             }
             ProcessLimitOffset(ref commandText, pagingRequest);
 
@@ -302,8 +312,7 @@ namespace Cms.BL
                 }
 
                 var columnSkipsOnUpdate = new string[] { "created_by", "created_date" };
-                IEnumerable<string> columnsUpdate = null;
-                columnsUpdate = columns.FindAll(x => x != columnKey && !columnSkipsOnUpdate.Contains(x))
+                IEnumerable<string> columnsUpdate = columns.FindAll(x => x != columnKey && !columnSkipsOnUpdate.Contains(x))
                         .Select(x => { return $"{x} = EXCLUDED.{x}"; });
                 sql.AppendLine($"ON CONFLICT ({columnKey}) DO UPDATE SET {string.Join(", ", columnsUpdate)};");
                 sql.AppendLine("SELECT 0;");
