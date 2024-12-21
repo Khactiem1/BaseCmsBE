@@ -1,0 +1,71 @@
+image: docker:stable
+variables:
+  V_IMAGE_NAME: "$CI_PROJECT_NAME"
+  V_DOCKER_IMAGE: "${V_DOCKER_HUB_USER}/$CI_COMMIT_BRANCH.$V_IMAGE_NAME"
+  V_DOCKER_FILE_NAME: "./Api/Service/Dictionary/CMS.Dictionary.API/Dockerfile"
+  V_ENVIRONMENT_NAME: "$CI_COMMIT_BRANCH"
+
+stages:
+  - build
+  - deploy
+  - clean
+build:
+  stage: build
+  #only:
+  #  - main
+  variables:
+    GIT_DEPTH: 10
+  before_script:
+    - docker login -u $V_DOCKER_HUB_USER -p $V_DOCKER_HUB_PASS $V_DOCKER_HUB_URL
+  script:
+    - docker build -t $V_DOCKER_IMAGE:$CI_COMMIT_SHORT_SHA -f ${V_DOCKER_FILE_NAME} .
+    - docker tag $V_DOCKER_IMAGE:$CI_COMMIT_SHORT_SHA $V_DOCKER_IMAGE:latest
+    - docker push $V_DOCKER_IMAGE:$CI_COMMIT_SHORT_SHA
+    - docker push $V_DOCKER_IMAGE:latest
+
+deploy_k8s_job:
+  stage: deploy
+  #only:
+  #  - main
+  variables:
+    GIT_DEPTH: 1
+  image: cylab/kubectl
+  before_script:
+    - export V_SERVICE_NAME=$(echo "$CI_PROJECT_NAME" | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9]/-/g')
+    - SANITIZED_BRANCH_NAME=$(echo $CI_COMMIT_BRANCH | sed 's/[^a-zA-Z0-9]/_/g' | tr '[:lower:]' '[:upper:]')
+    - V_SERVER_IP_VAR_NAME="V_SERVER_IP_${SANITIZED_BRANCH_NAME}"
+    - V_SERVER_IP=$(eval echo \$$V_SERVER_IP_VAR_NAME)
+
+    - V_SERVER_TOKEN_VAR_NAME="V_SERVER_TOKEN_${SANITIZED_BRANCH_NAME}"
+    - V_SERVER_TOKEN=$(eval echo \$$V_SERVER_TOKEN_VAR_NAME)
+
+    - V_NAMESPACE_VAR_NAME="V_NAMESPACE_${SANITIZED_BRANCH_NAME}"
+    - V_NAMESPACE=$(eval echo \$$V_NAMESPACE_VAR_NAME)
+
+    - V_SECRET_VAR_NAME="V_SECRET_${SANITIZED_BRANCH_NAME}"
+    - V_SECRET=$(eval echo \$$V_SECRET_VAR_NAME)
+
+    - V_PRE_PORT_VAR_NAME="V_PRE_PORT_${SANITIZED_BRANCH_NAME}"
+    - V_PRE_PORT=$(eval echo \$$V_PRE_PORT_VAR_NAME)
+
+    - echo "$V_SECRET"
+    - sed -i 's/Development/AcceptanceTestUrl/g' ./template-deployment.yaml
+    - sed -i "s|V_DOCKER_IMAGE|$V_DOCKER_IMAGE:$CI_COMMIT_SHORT_SHA|g" ./template-deployment.yaml
+    - sed -i "s|V_NAMESPACE|$V_NAMESPACE|g" ./template-deployment.yaml
+    - sed -i "s|V_SERVICE_NAME|$V_SERVICE_NAME|g" ./template-deployment.yaml
+    - sed -i "s|V_ENVIRONMENT|$V_ENVIRONMENT_NAME|g" ./template-deployment.yaml
+    - sed -i "s|V_SECRET|$V_SECRET|g" ./template-deployment.yaml
+    - sed -i "s|V_PRE_PORT|$V_PRE_PORT|g" ./template-deployment.yaml
+
+    - kubectl config set-cluster deploy-cluster --server="$V_SERVER_IP" --insecure-skip-tls-verify
+    - kubectl config set-credentials gitlab --token=$V_SERVER_TOKEN
+    - kubectl config set-context deploy-cluster --cluster=deploy-cluster --namespace=$V_NAMESPACE --user=gitlab
+    - kubectl config use-context deploy-cluster
+  script:
+    - kubectl apply -f ./template-deployment.yaml
+clean:
+  stage: clean
+  #only:
+  #  - main
+  script:
+    - docker image ls --filter "reference=$V_DOCKER_IMAGE" -q | xargs docker rmi -f

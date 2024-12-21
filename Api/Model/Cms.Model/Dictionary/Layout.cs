@@ -1,7 +1,6 @@
 ﻿using Cms.Core.Common;
 using System;
 using System.ComponentModel.DataAnnotations;
-using System.Reflection;
 using System.Text;
 
 namespace Cms.Model
@@ -9,7 +8,7 @@ namespace Cms.Model
     /// <summary>
     /// Model cấu hình layout
     /// </summary>
-    [ConfigTable("layout", "layout_id")]
+    [ConfigTable("layout", "layout_id", "", "SYS")]
     public class Layout : BaseEntity
     {
         /// <summary>

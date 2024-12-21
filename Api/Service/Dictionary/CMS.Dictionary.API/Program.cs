@@ -1,15 +1,19 @@
-﻿using CMS.Core.Web;
+﻿using Cms.Core.Common;
+using CMS.Core.Web;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.IdentityModel.Tokens;
+using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Xóa cấu hình mặc định nếu cần
-builder.Configuration.Sources.Clear();
-
-// Thêm file cấu hình từ đường dẫn tùy chỉnh
-builder.Configuration
-    .SetBasePath(Path.Combine(Directory.GetCurrentDirectory(), "../../../../Config"))
-    .AddJsonFile("appsettings.json", optional: false, reloadOnChange: true);
-
+var configPathDev = Path.Combine(Directory.GetCurrentDirectory(), "../../../../Config");
+if (Directory.Exists(configPathDev))
+{
+    builder.Configuration.Sources.Clear();
+    builder.Configuration
+        .SetBasePath(configPathDev)
+        .AddJsonFile("appsettings.json", optional: false, reloadOnChange: true);
+}
 
 // Add services to the container.
 
@@ -25,6 +29,8 @@ builder.Services.RegisterAppServices(builder.Configuration);
 builder.Services.InitConfigGlobal(builder.Configuration);
 builder.Services.ProcessCross();
 
+builder.Services.AddAuthenticationService();
+
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.
@@ -38,6 +44,8 @@ app.UseMiddleware();
 app.ProcessCross();
 
 app.UseHttpsRedirection();
+
+app.UseAuthentication();
 
 app.UseAuthorization();
 

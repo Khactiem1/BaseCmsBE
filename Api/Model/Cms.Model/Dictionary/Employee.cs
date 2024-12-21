@@ -1,7 +1,6 @@
 ﻿using Cms.Core.Common;
 using System;
 using System.ComponentModel.DataAnnotations;
-using System.Reflection;
 using System.Text;
 
 namespace Cms.Model
@@ -9,7 +8,7 @@ namespace Cms.Model
     /// <summary>
     /// Model nhân viên
     /// </summary>
-    [ConfigTable("employee", "employee_code")]
+    [ConfigTable("employee", "employee_code", "", "public")]
     public class Employee : BaseEntity
     {
         /// <summary>

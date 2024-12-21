@@ -13,7 +13,7 @@ namespace CMS.Dictionary.API
     /// Tầng Controller nhân viên
     /// </summary>
     /// @author nktiem 24/11/2024
-    //[Authorize]
+    [Authorize]
     public class EmployeeController : BaseController<Employee>
     {
         #region Field

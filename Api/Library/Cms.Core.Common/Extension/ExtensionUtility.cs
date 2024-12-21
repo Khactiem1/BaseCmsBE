@@ -6,6 +6,7 @@ using System.ComponentModel.DataAnnotations.Schema;
 using System.Linq;
 using System.Reflection;
 using System.Text;
+using System.Security.Cryptography;
 using System.Threading.Tasks;
 
 namespace Cms.Core.Common.Extension
@@ -19,8 +20,15 @@ namespace Cms.Core.Common.Extension
         /// <returns></returns>
         public static string GetTableNameOnly(this Type type)
         {
-            string tableName = ((ConfigTableAttribute)type.GetCustomAttributes(typeof(ConfigTableAttribute), true)?.FirstOrDefault())?.TableName;
-            return tableName;
+            ConfigTableAttribute table = (ConfigTableAttribute)type.GetCustomAttributes(typeof(ConfigTableAttribute), true)?.FirstOrDefault();
+
+            string tableName = table?.TableName;
+            string schema = table?.Schema;
+            if (string.IsNullOrEmpty(schema))
+            {
+                return tableName;
+            }
+            return string.Concat("\"", schema, "\"", ".", "\"", tableName, "\"");
         }
 
         /// <summary>
@@ -31,15 +39,28 @@ namespace Cms.Core.Common.Extension
         public static string? GetViewNameOnly(this Type type)
         {
             ConfigTableAttribute table = (ConfigTableAttribute)type.GetCustomAttributes(typeof(ConfigTableAttribute), true)?.FirstOrDefault();
-            if (table != null)
+            string viewName = "";
+            string schema = table?.Schema;
+            if (!string.IsNullOrEmpty(table?.ViewName))
             {
-                if (!string.IsNullOrEmpty(table.ViewName))
-                {
-                    return table.ViewName;
-                }
-                return table.TableName;
+                viewName = table?.ViewName;
             }
-            return "";
+            viewName = table?.TableName;
+            if (string.IsNullOrEmpty(schema))
+            {
+                return viewName;
+            }
+            return string.Concat("\"", schema, "\"", ".", "\"", viewName, "\"");
+        }
+
+        /// <summary>
+        /// GetFieldUnique của bảng nếu có cấu hình
+        /// </summary>
+        /// <param name="type"></param>
+        /// <returns></returns>
+        public static string? GetFieldUnique(this Type type)
+        {
+            return ((ConfigTableAttribute)type.GetCustomAttributes(typeof(ConfigTableAttribute), true)?.FirstOrDefault())?.FieldUnique;
         }
 
         /// <summary>
@@ -122,6 +143,41 @@ namespace Cms.Core.Common.Extension
         }
 
         /// <summary>
+        /// Lấy giá trị object theo Key với kiểu return nhất định
+        /// </summary>
+        /// <param name="objEntity">object</param>
+        /// <param name="propertyName"></param>
+        /// <returns></returns>
+        public static T GetValue<T>(this object objEntity, string propertyName)
+        {
+            T value = default(T);
+            if (objEntity != null && !string.IsNullOrEmpty(propertyName))
+            {
+                if (objEntity.GetType() == typeof(Dictionary<string, object>))
+                {
+                    return (objEntity as Dictionary<string, object>).Get<T>(propertyName);
+                }
+                else
+                {
+                    PropertyInfo info = objEntity.GetType().GetProperty(propertyName);
+                    if (info != null)
+                    {
+                        object objectValue = info.GetValue(objEntity);
+                        if (objectValue != null)
+                        {
+                            value = (T)objectValue;
+                        }
+                    }
+                    else
+                    {
+                        return objEntity.ToDictionary().Get<T>(propertyName);
+                    }
+                }
+            }
+            return value;
+        }
+
+        /// <summary>
         /// Set giá trị object theo Key
         /// </summary>
         /// <param name="objEntity"></param>
@@ -158,6 +214,20 @@ namespace Cms.Core.Common.Extension
                 return dic[key];
             }
             return null;
+        }
+
+        /// <summary>
+        /// Get giá trị từ Dictionary trả về kiểu nhất định
+        /// </summary>
+        /// <returns></returns>
+        public static T Get<T>(this Dictionary<string, object> dic, string key)
+        {
+            T value = default(T);
+            if (dic.ContainsKey(key) && dic[key] != null)
+            {
+                return JsonConvert.DeserializeObject<T>(JsonConvert.SerializeObject(dic[key]));
+            }
+            return value;
         }
 
         /// <summary>
@@ -234,5 +304,20 @@ namespace Cms.Core.Common.Extension
             return default;
         }
 
+        /// <summary>
+        /// Hàm mã hoá mật khẩu bằng SHA-256
+        /// </summary>
+        /// <param name="password"></param>
+        /// <returns></returns>
+        public static string HashPassword(string password)
+        {
+            using (var sha256 = SHA256.Create())
+            {
+                byte[] passwordBytes = Encoding.UTF8.GetBytes(password);
+                byte[] hashBytes = sha256.ComputeHash(passwordBytes);
+                string hash = BitConverter.ToString(hashBytes).Replace("-", "").ToLower();
+                return hash;
+            }
+        }
     }
 }

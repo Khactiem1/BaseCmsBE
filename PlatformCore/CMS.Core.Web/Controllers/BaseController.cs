@@ -1,10 +1,10 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Security.Claims;
 using System.Text;
 using Cms.BL;
 using Cms.Core.Common.Extension;
 using Cms.Model;
-using Cms.Model.Enum;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Newtonsoft.Json;
@@ -39,6 +39,29 @@ namespace CMS.Core.Web
         #region API GET
 
         /// <summary>
+        /// Hàm lấy ra thông tin người đang đăng nhập gọi api
+        /// </summary>
+        /// <returns></returns>
+        [HttpGet("get-current-user")]
+        public User GetCurrentUser()
+        {
+            var identity = HttpContext.User.Identity as ClaimsIdentity;
+
+            if (identity != null)
+            {
+                var userClaims = identity.Claims;
+
+                return new User
+                {
+                    user_id = Guid.Parse(userClaims.FirstOrDefault(o => o.Type == ClaimTypes.NameIdentifier)?.Value),
+                    user_name = userClaims.FirstOrDefault(o => o.Type == ClaimTypes.Name)?.Value,
+                    user_full_name = userClaims.FirstOrDefault(o => o.Type == ClaimTypes.GivenName)?.Value,
+                };
+            }
+            return null;
+        }
+
+        /// <summary>
         /// Hàm lấy ra bản ghi theo ID
         /// </summary>
         /// <param name="recordID"></param>
@@ -59,6 +82,33 @@ namespace CMS.Core.Web
         #region API POST
 
         /// <summary>
+        /// Khôi phục dữ liệu đã bị xoá theo mã
+        /// </summary>
+        /// <param name="model"></param>
+        /// <returns></returns>
+        [HttpPost("restore_data_delete")]
+        public async Task<ServiceResponse> RestoreDataDelete([FromBody] T record)
+        {
+            User user = GetCurrentUser();
+            var baseModel = (BaseEntity)JsonConvert.DeserializeObject(JsonConvert.SerializeObject(record), typeof(T));
+            baseModel.modified_by = user.user_id;
+            return await _baseBL.RestoreDataDelete(baseModel);
+        }
+
+        /// <summary>
+        /// Export data ra file excel
+        /// </summary>
+        /// <param name="formData">Trường muốn filter và sắp xếp</param>
+        /// <returns>file Excel chứa dữ liệu danh sách </returns>
+        /// CreatedBy: Nguyễn Khắc Tiềm (6/10/2022)
+        [HttpPost("export_data")]
+        public virtual async Task<IActionResult> ExportData([FromBody] ExportDataParam param)
+        {
+            Stream stream = await _baseBL.ExportData(param);
+            return File(stream, "application/octet-stream", $"{param.SheetName}.xlsx");
+        }
+
+        /// <summary>
         /// Đầu API Save bản ghi
         /// </summary>
         /// <param name="record"></param>
@@ -67,8 +117,11 @@ namespace CMS.Core.Web
         [HttpPost]
         public virtual async Task<ServiceResponse> InsertDataAsync([FromBody] T record)
         {
+            User user = GetCurrentUser();
             var baseModel = (BaseEntity)JsonConvert.DeserializeObject(JsonConvert.SerializeObject(record), typeof(T));
             baseModel.State = EntityState.Insert;
+            baseModel.created_by = user.user_id;
+            baseModel.modified_by = user.user_id;
             return await _baseBL.SaveDataAsync(new List<BaseEntity>() { baseModel });
         }
 
@@ -81,9 +134,8 @@ namespace CMS.Core.Web
         [HttpPost("datapaging")]
         public virtual async Task<ServiceResponse> GetDataPaging([FromBody] PagingRequest pagingRequest)
         {
-            var baseModel = (BaseEntity)JsonConvert.DeserializeObject(JsonConvert.SerializeObject(new object()), typeof(T));
             var result = new ServiceResponse();
-            result.Data = await _baseBL.GetDataPaging(pagingRequest, baseModel.GetType().GetViewNameOnly());
+            result.Data = await _baseBL.GetDataPaging(pagingRequest, typeof(T).GetViewNameOnly());
             return result;
         }
 
@@ -97,11 +149,13 @@ namespace CMS.Core.Web
         public virtual async Task<ServiceResponse> DeleteMultiple([FromBody] List<Guid> listRecordID)
         {
             var baseEntitys = new List<BaseEntity>();
+            User user = GetCurrentUser();
             foreach (var recordID in listRecordID)
             {
                 var baseModel = (BaseEntity)JsonConvert.DeserializeObject(JsonConvert.SerializeObject(new object()), typeof(T));
                 baseModel.SetValue(baseModel.GetType().GetPrimaryKeyFieldName(), recordID);
                 baseModel.State = EntityState.Delete;
+                baseModel.deleted_by = user.user_id;
                 baseEntitys.Add(baseModel);
             }
             return await _baseBL.SaveDataAsync(baseEntitys);
@@ -117,11 +171,13 @@ namespace CMS.Core.Web
         public virtual async Task<ServiceResponse> ToggleInactive([FromBody] ModelToggleInactive dataInactives)
         {
             var baseEntitys = new List<BaseEntity>();
+            User user = GetCurrentUser();
             foreach (var recordID in dataInactives.ListID)
             {
                 var baseModel = (BaseEntity)JsonConvert.DeserializeObject(JsonConvert.SerializeObject(new object()), typeof(T));
                 baseModel.SetValue(baseModel.GetType().GetPrimaryKeyFieldName(), recordID);
                 baseModel.State = EntityState.Inactive;
+                baseModel.modified_by = user.user_id;
                 baseEntitys.Add(baseModel);
             }
             return await _baseBL.SaveDataAsync(baseEntitys, dataInactives: dataInactives);
@@ -140,8 +196,10 @@ namespace CMS.Core.Web
         [HttpPut("{recordID}")]
         public virtual async Task<ServiceResponse> UpdateRecord([FromRoute] Guid recordID, [FromBody] T record)
         {
+            User user = GetCurrentUser();
             var baseModel = (BaseEntity)JsonConvert.DeserializeObject(JsonConvert.SerializeObject(record), typeof(T));
             baseModel.State = EntityState.Update;
+            baseModel.modified_by = user.user_id;
             return await _baseBL.SaveDataAsync(new List<BaseEntity>() { baseModel });
         }
 
@@ -157,9 +215,11 @@ namespace CMS.Core.Web
         [HttpDelete("{recordID}")]
         public virtual async Task<ServiceResponse> DeleteRecord([FromRoute] Guid recordID)
         {
+            User user = GetCurrentUser();
             var baseModel = (BaseEntity)JsonConvert.DeserializeObject(JsonConvert.SerializeObject(new object()), typeof(T));
             baseModel.SetValue(baseModel.GetType().GetPrimaryKeyFieldName(), recordID);
             baseModel.State = EntityState.Delete;
+            baseModel.deleted_by = user.user_id;
             return await _baseBL.SaveDataAsync(new List<BaseEntity>() { baseModel });
         }
 

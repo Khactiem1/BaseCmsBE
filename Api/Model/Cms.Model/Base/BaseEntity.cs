@@ -1,9 +1,10 @@
-﻿using Cms.Model.Enum;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations.Schema;
 using System.Linq;
+using System.Runtime.Serialization;
 using System.Text;
+using System.Text.Json.Serialization;
 using System.Threading.Tasks;
 
 namespace Cms.Model
@@ -16,7 +17,7 @@ namespace Cms.Model
         /// <summary>
         /// Người tạo
         /// </summary>
-        public string? created_by { get; set; }
+        public Guid? created_by { get; set; }
 
         /// <summary>
         /// Ngày tạo
@@ -26,7 +27,7 @@ namespace Cms.Model
         /// <summary>
         /// Người sửa
         /// </summary>
-        public string? modified_by { get; set; }
+        public Guid? modified_by { get; set; }
 
         /// <summary>
         /// Ngày sửa
@@ -36,7 +37,7 @@ namespace Cms.Model
         /// <summary>
         /// Người xoá
         /// </summary>
-        public string? deleted_by { get; set; }
+        public Guid? deleted_by { get; set; }
 
         /// <summary>
         /// Ngày xoá
@@ -58,12 +59,20 @@ namespace Cms.Model
         /// <summary>
         /// Ngừng sử dụng
         /// </summary>
-        public bool? inactive { get; set; } = false;
+        public bool? is_active { get; set; } = true;
 
         /// <summary>
         /// Mode thêm hay sửa hay xoá (Mặc định là None ko làm gì)
         /// </summary>
         [NotMapped]
         public EntityState? State { get; set; } = EntityState.None;
+
+        /// <summary>
+        /// Danh sách các detail được cấu hình ở master
+        /// </summary>
+        [NotMapped]
+        [IgnoreDataMember]
+        [JsonIgnore]
+        public List<ModelDetailConfig> ModelDetailConfig { get; set; } = new List<ModelDetailConfig>();
     }
 }

@@ -41,19 +41,21 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Layout", "Layout", "{E306C5
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "System", "System", "{A88109E5-EBE9-4E88-BDEA-AB058478A9C9}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CMS.Dictionary.API", "Api\Service\Dictionary\CMS.Dictionary.API\CMS.Dictionary.API.csproj", "{58FE9598-B249-4535-9DF6-21AEB934D5DC}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "CMS.Dictionary.API", "Api\Service\Dictionary\CMS.Dictionary.API\CMS.Dictionary.API.csproj", "{58FE9598-B249-4535-9DF6-21AEB934D5DC}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CMS.Core.Web", "PlatformCore\CMS.Core.Web\CMS.Core.Web.csproj", "{256AB3D0-6480-469C-B92C-AFB3D33526A2}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "CMS.Core.Web", "PlatformCore\CMS.Core.Web\CMS.Core.Web.csproj", "{256AB3D0-6480-469C-B92C-AFB3D33526A2}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Cms.Model", "Api\Model\Cms.Model\Cms.Model.csproj", "{8351064B-2DB7-437B-B286-BE7B3F616B3D}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Cms.Model", "Api\Model\Cms.Model\Cms.Model.csproj", "{8351064B-2DB7-437B-B286-BE7B3F616B3D}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Cms.BL", "Api\BL\Cms.BL\Cms.BL.csproj", "{E2234559-0EC0-4172-AA62-13AD0E0B69D0}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Cms.BL", "Api\BL\Cms.BL\Cms.BL.csproj", "{E2234559-0EC0-4172-AA62-13AD0E0B69D0}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Cms.DL", "Api\DL\Cms.DL\Cms.DL.csproj", "{99033B33-4FAA-4ABD-BC4B-2A92FF315B69}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Cms.DL", "Api\DL\Cms.DL\Cms.DL.csproj", "{99033B33-4FAA-4ABD-BC4B-2A92FF315B69}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Cms.Core.Common", "Api\Library\Cms.Core.Common\Cms.Core.Common.csproj", "{7804AE80-D4D5-47D1-A58C-6EC38336D73B}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Cms.Core.Common", "Api\Library\Cms.Core.Common\Cms.Core.Common.csproj", "{7804AE80-D4D5-47D1-A58C-6EC38336D73B}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CMS.Core.Database", "PlatformCore\CMS.Core.Database\CMS.Core.Database.csproj", "{34F7C0F7-7BE7-4A7F-BDA7-AC56F72BF48B}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "CMS.Core.Database", "PlatformCore\CMS.Core.Database\CMS.Core.Database.csproj", "{34F7C0F7-7BE7-4A7F-BDA7-AC56F72BF48B}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CMS.File.API", "Api\Service\File\CMS.File.API\CMS.File.API.csproj", "{98922454-F045-4B60-A18D-576CAC8EA2F3}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -89,6 +91,10 @@ Global
 		{34F7C0F7-7BE7-4A7F-BDA7-AC56F72BF48B}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{34F7C0F7-7BE7-4A7F-BDA7-AC56F72BF48B}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{34F7C0F7-7BE7-4A7F-BDA7-AC56F72BF48B}.Release|Any CPU.Build.0 = Release|Any CPU
+		{98922454-F045-4B60-A18D-576CAC8EA2F3}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{98922454-F045-4B60-A18D-576CAC8EA2F3}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{98922454-F045-4B60-A18D-576CAC8EA2F3}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{98922454-F045-4B60-A18D-576CAC8EA2F3}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -113,6 +119,7 @@ Global
 		{99033B33-4FAA-4ABD-BC4B-2A92FF315B69} = {723AD73D-6027-4B3E-A9C7-149A83D8932C}
 		{7804AE80-D4D5-47D1-A58C-6EC38336D73B} = {D779F031-A978-41AC-A70B-512CC5FF9349}
 		{34F7C0F7-7BE7-4A7F-BDA7-AC56F72BF48B} = {7CB3A6BC-9FBC-44D9-ADCF-74A3639D98C6}
+		{98922454-F045-4B60-A18D-576CAC8EA2F3} = {AA9B97D3-A594-41A1-834C-949E2A8A8466}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {AF05287F-B3C8-40AD-AFBD-6E64A2390B06}

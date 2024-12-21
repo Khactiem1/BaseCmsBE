@@ -1,0 +1,36 @@
+﻿apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: V_SERVICE_NAME
+spec:
+  replicas: 2
+  selector:
+    spec:
+      containers:
+      - name: V_SERVICE_NAME
+        image: "V_DOCKER_IMAGE"
+        imagePullPolicy: IfNotPresent #Always
+        ports:
+        - containerPort: 80
+          name: http
+        env:
+        - name: ASPNETCORE_ENVIRONMENT
+          value: V_ENVIRONMENT
+
+      imagePullSecrets:
+      - name: V_SECRET
+  name: V_SERVICE_NAME
+  namespace: V_NAMESPACE
+spec:
+  ports:
+  - protocol: TCP
+    port: 80
+    targetPort: 8080
+    #nodePort: 30029 # comment if not nodeport
+    name: http
+  selector:
+    app: V_SERVICE_NAME
+  #type: NodePort # comment if not nodeport
+  ipFamilies:
+  - IPv4
+  ipFamilyPolicy: SingleStack

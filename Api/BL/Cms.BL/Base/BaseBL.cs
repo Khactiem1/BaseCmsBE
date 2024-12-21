@@ -1,16 +1,18 @@
 ﻿using Cms.Core.Common.Extension;
 using Cms.DL;
 using Cms.Model;
-using Cms.Model.Enum;
 using CMS.Core.Database;
 using CMS.Core.Database.Service;
 using Newtonsoft.Json;
+using OfficeOpenXml.Style;
+using OfficeOpenXml;
 using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Reflection;
 using System.Text;
 using System.Transactions;
+using System.Collections;
 
 namespace Cms.BL
 {
@@ -23,7 +25,7 @@ namespace Cms.BL
         #region Field
 
         private IBaseDL<T> _baseDL;
-        private IDatabaseService _databaseService;
+        protected IDatabaseService _databaseService;
 
         #endregion
 
@@ -38,6 +40,49 @@ namespace Cms.BL
         #endregion
 
         #region Method
+
+        /// <summary>
+        /// Thực hiện xuất excel dữ liệu
+        /// </summary>
+        /// <returns></returns>
+        public async Task<Stream> ExportData(ExportDataParam param)
+        {
+            var pagingResult = await GetDataPaging(param.Param, typeof(T).GetViewNameOnly());
+            List<object> records = pagingResult.PageData;
+            if (records == null || records.Count == 0 || param.HeaderColumns.Count == 0) return null;
+            // lấy các thuộc tính của nhân viên
+            var properties = typeof(T).GetProperties();
+            int indexCol = param.HeaderColumns.Count;
+            string column = ExcelUtil.GetColumnName(indexCol + 1);
+            var stream = new MemoryStream();
+            ExcelPackage.LicenseContext = LicenseContext.NonCommercial;
+            using (var package = new ExcelPackage(stream ?? new MemoryStream()))
+            {
+                var sheet = package.Workbook.Worksheets.Add(param.Title);
+                // style header customize tên header của file excel
+                ExcelUtil.SetUpExportHeaderData(ref sheet, column, param.Title, records.Count(), param.HeaderColumns);
+                int index = 4;
+                int indexRow = 0;
+                //string convertDate = "M/d/yyyy hh:mm:ss tt";
+                // duyệt các nhân viên thêm dữ liệu vào excel (phần body)
+                foreach (var recordItem in records)
+                {
+                    int indexBody = 2;
+                    sheet.Cells[index, 1].Value = indexRow + 1;
+                    sheet.Cells[index, 1].Style.HorizontalAlignment = ExcelHorizontalAlignment.Center;
+                    index++;
+                    foreach (var header in param.HeaderColumns)
+                    {
+                        ExcelUtil.SetCellValue(ref sheet, indexRow, indexBody, recordItem, header);
+                        indexBody++;
+                    }
+                    indexRow++;
+                }
+                package.Save();
+                package.Stream.Position = 0;
+                return package.Stream;
+            }
+        }
 
         /// <summary>
         /// Thực hiện Paging data
@@ -63,13 +108,13 @@ namespace Cms.BL
                 string whereString = whereParameter.GetWhereClause();
                 if (!string.IsNullOrEmpty(whereString))
                 {
-                    commandText.Append($" WHERE {whereString} AND is_deleted = false");
-                    commandTextCount.Append($" WHERE {whereString} AND is_deleted = false");
+                    commandText.Append($" WHERE {whereString} AND (is_deleted = false OR is_deleted is null)");
+                    commandTextCount.Append($" WHERE {whereString} AND (is_deleted = false OR is_deleted is null)");
                 }
                 else
                 {
-                    commandText.Append($" WHERE is_deleted = false");
-                    commandTextCount.Append($" WHERE is_deleted = false");
+                    commandText.Append($" WHERE (is_deleted = false OR is_deleted is null)");
+                    commandTextCount.Append($" WHERE (is_deleted = false OR is_deleted is null)");
                 }
                 if (whereParameter.WhereValues != null)
                 {
@@ -81,8 +126,8 @@ namespace Cms.BL
             }
             else
             {
-                commandText.Append($" WHERE is_deleted = false");
-                commandTextCount.Append($" WHERE is_deleted = false");
+                commandText.Append($" WHERE (is_deleted = false OR is_deleted is null)");
+                commandTextCount.Append($" WHERE (is_deleted = false OR is_deleted is null)");
             }
             if (!string.IsNullOrEmpty(sort))
             {
@@ -96,11 +141,22 @@ namespace Cms.BL
             {
                 commandText.Append($", {columnKey} DESC");
             }
-            ProcessLimitOffset(ref commandText, pagingRequest);
+            bool isProcessLimitOffset = ProcessLimitOffset(ref commandText, pagingRequest);
+            if (!isProcessLimitOffset)
+            {
+                commandText.Append($";");
+            }
 
             // Paging dữ liệu
             result.PageData = await _databaseService.QueryUsingCommandText<object>(commandText.ToString(), param);
-            result.Count = await _databaseService.ExecuteScalarUsingCommandText<int>(commandTextCount.ToString(), param);
+            if (isProcessLimitOffset)
+            {
+                result.Count = await _databaseService.ExecuteScalarUsingCommandText<int>(commandTextCount.ToString(), param);
+            }
+            else
+            {
+                result.Count = result.PageData.Count;
+            }
 
             return result;
         }
@@ -108,13 +164,14 @@ namespace Cms.BL
         /// <summary>
         /// Xử lý sql phân trang
         /// </summary>
-        public void ProcessLimitOffset(ref StringBuilder commandText, PagingRequest pagingRequest)
+        public bool ProcessLimitOffset(ref StringBuilder commandText, PagingRequest pagingRequest)
         {
             if (pagingRequest.PageIndex == 0 || pagingRequest.PageSize == 0)
             {
-                return;
+                return false;
             }
             commandText.Append($" LIMIT {pagingRequest.PageSize} OFFSET {(pagingRequest.PageIndex - 1) * pagingRequest.PageSize};");
+            return true;
         }
 
         /// <summary>
@@ -125,11 +182,178 @@ namespace Cms.BL
         /// @author nktiem 24.11.2024
         public async Task<dynamic> GetMasterDetail(Guid id, Type? modelType = null)
         {
-            if(modelType == null)
+            if (modelType == null)
             {
                 modelType = typeof(T);
             }
-            return await _databaseService.GetByID<T>(modelType, id);
+            // Get master trước
+            var baseEntity = (BaseEntity)Activator.CreateInstance(modelType);
+            object data = await _databaseService.GetByID<T>(modelType, id);
+
+            // Get detail
+            if (data != null)
+            {
+                baseEntity = (BaseEntity)data;
+                if (baseEntity.ModelDetailConfig != null && baseEntity.ModelDetailConfig.Count > 0)
+                {
+                    var foreignKeyValue = baseEntity.GetValue(baseEntity.GetType().GetPrimaryKeyFieldName());
+                    foreach (ModelDetailConfig detailConfig in baseEntity.ModelDetailConfig.Where(c => !string.IsNullOrWhiteSpace(c.PropertyNameOnMaster)))
+                    {
+                        string commandText = $"SELECT * FROM {detailConfig.ModelType.GetViewNameOnly()} WHERE is_deleted = false AND {modelType.GetPrimaryKeyFieldName()} = @v_IDValue;";
+                        Dictionary<string, object> param = new Dictionary<string, object>()
+                        {
+                            { "v_IDValue", foreignKeyValue },
+                        };
+                        IList lstDetail = await _databaseService.QueryUsingCommandText<object>(commandText, param);
+                        if (lstDetail != null && lstDetail.Count > 0)
+                        {
+                            Type genericListType = typeof(List<>).MakeGenericType(detailConfig.ModelType);
+                            IList list = (IList)Activator.CreateInstance(genericListType);
+                            var deserializedList = JsonConvert.DeserializeObject(JsonConvert.SerializeObject(lstDetail), genericListType);
+                            // Gán giá trị vào danh sách
+                            foreach (var item in (IList)deserializedList)
+                            {
+                                list.Add(item);
+                            }
+                            baseEntity.SetValue(detailConfig.PropertyNameOnMaster, list);
+                        }
+                    }
+                }
+            }
+            await AfterGetFormData(baseEntity);
+            return baseEntity;
+        }
+
+        /// <summary>
+        /// Xử lý sau khi get data ra
+        /// </summary>
+        /// <returns></returns>
+        public virtual async Task AfterGetFormData(BaseEntity baseEntity)
+        {
+
+        }
+
+        /// <summary>
+        /// Khôi phục dữ liệu đã bị xoá theo mã
+        /// </summary>
+        /// <param name="model"></param>
+        /// <returns></returns>
+        public async Task<ServiceResponse> RestoreDataDelete(BaseEntity baseEntity)
+        {
+            string fieldUnique = baseEntity.GetType().GetFieldUnique();
+            string tableName = baseEntity.GetType().GetTableNameOnly();
+            string columnKey = baseEntity.GetType().GetPrimaryKeyFieldName();
+            Dictionary<string, object> param = new Dictionary<string, object>();
+            string command = $"UPDATE {tableName} SET is_deleted = false, deleted_date = @D_deleted_date, modified_by = @D_modified_by WHERE {fieldUnique} = @D_{fieldUnique}; select {columnKey} from {tableName} WHERE {fieldUnique} = @D_{fieldUnique};";
+            param.Add($"@D_deleted_date", null);
+            param.Add($"@D_modified_by", baseEntity.modified_by);
+            param.Add($"@D_{fieldUnique}", baseEntity.GetValue(fieldUnique));
+            var result = await _databaseService.QueryUsingCommandText<object>(command, param);
+            return new ServiceResponse()
+            {
+                Data = result?.FirstOrDefault(),
+            };
+        }
+
+        /// <summary>
+        /// Xử lý validate trước khi cất dữ liệu
+        /// </summary>
+        /// <returns></returns>
+        public virtual async Task<List<ValidateResult>> ValidateBeforeSave(List<BaseEntity> baseEntitys)
+        {
+            List<ValidateResult> validateResults = new List<ValidateResult>();
+            var validateCheckDuplicate = await CheckDuplidateData(baseEntitys);
+            if (validateCheckDuplicate != null && validateCheckDuplicate.Count > 0)
+            {
+                validateResults.AddRange(validateCheckDuplicate);
+            }
+            var validateCustom = await ValidateBeforeSaveCustom(baseEntitys);
+            if(validateCustom != null && validateCustom.Count > 0)
+            {
+                validateResults.AddRange(validateCustom);
+            }
+            return validateResults;
+        }
+
+        /// <summary>
+        /// Xử lý check trùng dữ liệu
+        /// </summary>
+        /// <returns></returns>
+        public async Task<List<ValidateResult>> CheckDuplidateData(List<BaseEntity> baseEntitys)
+        {
+            List<ValidateResult> validateResults = new List<ValidateResult>();
+            StringBuilder commandCheckDuplicate = new StringBuilder();
+            StringBuilder commandCheckDuplicateDel = new StringBuilder();
+            Dictionary<string, object> param = new Dictionary<string, object>();
+            string fieldUnique = baseEntitys[0].GetType().GetFieldUnique();
+            if (!string.IsNullOrEmpty(fieldUnique))
+            {
+                string tableName = baseEntitys[0].GetType().GetTableNameOnly();
+                string columnKey = baseEntitys[0].GetType().GetPrimaryKeyFieldName();
+                commandCheckDuplicate.Append($"select true from {tableName} where ");
+                commandCheckDuplicateDel.Append($"select true from {tableName} where ");
+                int count = 0;
+                int countDel = 0;
+                foreach (var baseEntity in baseEntitys)
+                {
+                    if(baseEntity.State == EntityState.Insert)
+                    {
+                        if(count > 0) commandCheckDuplicate.Append("OR ");
+                        if (countDel > 0) commandCheckDuplicateDel.Append("OR ");
+                        commandCheckDuplicate.Append($"({fieldUnique} = @v_{fieldUnique}{count} and (is_deleted = false OR is_deleted is null)) ");
+                        commandCheckDuplicateDel.Append($"({fieldUnique} = @v_{fieldUnique}{countDel}_del and is_deleted = true) ");
+                        param.Add($"v_{fieldUnique}{count}", baseEntity.GetValue(fieldUnique));
+                        param.Add($"v_{fieldUnique}{countDel}_del", baseEntity.GetValue(fieldUnique));
+                        count++;
+                        countDel++;
+                    }
+                    else if (baseEntity.State == EntityState.Update)
+                    {
+                        if (count > 0)
+                        {
+                            commandCheckDuplicate.Append("OR ");
+                        }
+                        commandCheckDuplicate.Append($"({fieldUnique} = @v_{fieldUnique}{count} and {columnKey} <> @v_{columnKey}{count} and (is_deleted = false OR is_deleted is null)) ");
+                        param.Add($"v_{fieldUnique}{count}", baseEntity.GetValue(fieldUnique));
+                        param.Add($"v_{columnKey}{count}", baseEntity.GetValue(columnKey));
+                        count++;
+                    }
+                }
+                if (count > 0)
+                {
+                    var result = await _databaseService.ExecuteScalarUsingCommandText<bool>(commandCheckDuplicate.ToString(), param);
+                    if (result)
+                    {
+                        validateResults.Add(new ValidateResult()
+                        {
+                            ErrorMessage = "i18nCommon.DuplicateData",
+                            Code = EnumValidateResult.Duplicate
+                        });
+                    }
+                }
+                if (countDel > 0)
+                {
+                    var result = await _databaseService.ExecuteScalarUsingCommandText<bool>(commandCheckDuplicateDel.ToString(), param);
+                    if (result)
+                    {
+                        validateResults.Add(new ValidateResult()
+                        {
+                            ErrorMessage = "i18nCommon.DuplicateDataDel",
+                            Code = EnumValidateResult.DuplicateDelete
+                        });
+                    }
+                }
+            }
+            return validateResults;
+        }
+
+        /// <summary>
+        /// Xử lý validate trước khi cất dữ liệu dành cho các service override lại xử lý custom validate
+        /// </summary>
+        /// <returns></returns>
+        public virtual async Task<List<ValidateResult>> ValidateBeforeSaveCustom(List<BaseEntity> baseEntitys)
+        {
+            return null;
         }
 
         /// <summary>
@@ -147,7 +371,14 @@ namespace Cms.BL
 
             try
             {
-                // Thực hiện validate dữ liệu: TODO
+                // Thực hiện validate dữ liệu
+                var validateResults = await ValidateBeforeSave(baseEntitys);
+                if (validateResults.Count > 0)
+                {
+                    serviceResponse.Data = validateResults;
+                    serviceResponse.Success = false;
+                    return serviceResponse;
+                }
 
                 // Xử lý dữ liệu trước khi cất
                 await BeforeSaveDataAsync(baseEntitys);
@@ -218,6 +449,41 @@ namespace Cms.BL
             var param = new Dictionary<string, object>();
             var command = BuildQueryStringUpdate(baseEntitys, ref param, dataInactives: dataInactives);
             await _databaseService.ExecuteScalarUsingCommandText<int>(command, param, transaction: transaction);
+
+            // Save detail
+            foreach (var entity in baseEntitys)
+            {
+                if (entity.ModelDetailConfig != null && entity.ModelDetailConfig.Count > 0)
+                {
+                    var foreignKeyValue = entity.GetValue(entity.GetType().GetPrimaryKeyFieldName());
+                    foreach (ModelDetailConfig detailConfig in entity.ModelDetailConfig.Where(c => !string.IsNullOrWhiteSpace(c.PropertyNameOnMaster)))
+                    {
+                        IList lstDetailObject = entity.GetValue<IList>(detailConfig.PropertyNameOnMaster);
+                        if (lstDetailObject != null && lstDetailObject.Count > 0)
+                        {
+                            List<BaseEntity> lstDetailSave = new List<BaseEntity>();
+                            foreach (BaseEntity detail in lstDetailObject)
+                            {
+                                if (detail.State == EntityState.Insert)
+                                {
+                                    detail.created_date = DateTime.Now;
+                                }
+                                detail.modified_date = DateTime.Now;
+                                if (detail.State == EntityState.Insert || detail.State == EntityState.Update || detail.State == EntityState.Delete)
+                                {
+                                    // Gán lại khoá chính cho detail
+                                    detail.SetValue(detailConfig.ForeignKeyName, foreignKeyValue);
+                                    lstDetailSave.Add(detail);
+                                }
+                            }
+                            if(lstDetailSave.Count > 0)
+                            {
+                                await DoSaveAsync(lstDetailSave, transaction);
+                            }
+                        }
+                    }
+                }
+            }
             return true;
         }
 
@@ -252,8 +518,9 @@ namespace Cms.BL
                 string valueInactive = dataInactives.Inactive ? "true" : "false";
                 foreach (var baseModel in modelInactives)
                 {
-                    sql.AppendLine($"UPDATE {tableName} SET inactive = {valueInactive}, modified_date = @I_modified_date{count} WHERE {columnKey} = @I_{columnKey}{count};");
+                    sql.AppendLine($"UPDATE {tableName} SET is_active = {valueInactive}, modified_date = @I_modified_date{count}, modified_by = @I_modified_by{count} WHERE {columnKey} = @I_{columnKey}{count};");
                     param.Add($"@I_modified_date{count}", DateTime.Now);
+                    param.Add($"@I_modified_by{count}", baseModel.modified_by);
                     param.Add($"@I_{columnKey}{count}", baseModel.GetValue(columnKey));
                     count++;
                 }
@@ -270,8 +537,9 @@ namespace Cms.BL
                     }
                     else
                     {
-                        sql.AppendLine($"UPDATE {tableName} SET is_deleted = true, deleted_date = @D_deleted_date{count} WHERE {columnKey} = @D_{columnKey}{count};");
+                        sql.AppendLine($"UPDATE {tableName} SET is_deleted = true, deleted_date = @D_deleted_date{count}, deleted_by = @D_deleted_by{count} WHERE {columnKey} = @D_{columnKey}{count};");
                         param.Add($"@D_deleted_date{count}", DateTime.Now);
+                        param.Add($"@D_deleted_by{count}", baseModel.deleted_by);
                     }
                     //Add param
                     param.Add($"@D_{columnKey}{count}", baseModel.GetValue(columnKey));
@@ -289,6 +557,13 @@ namespace Cms.BL
                 sql.AppendLine($"INSERT INTO {tableName} ( {string.Join(",", columns)}) VALUES");
                 foreach (var baseModel in modelInserts)
                 {
+                    if(baseModel.State == EntityState.Insert)
+                    {
+                        if(baseModel.is_active == null)
+                        {
+                            baseModel.is_active = true;
+                        }
+                    }
                     if (string.IsNullOrEmpty(baseModel.GetValue(columnKey) + "") || baseModel.GetValue(columnKey) == null || (baseModel.GetValue(columnKey) + "") == "00000000-0000-0000-0000-000000000000")
                     {
                         baseModel.SetValue(columnKey, Guid.NewGuid());
@@ -350,7 +625,10 @@ namespace Cms.BL
         {
             foreach(var baseEntity in baseEntitys)
             {
-                baseEntity.created_date = DateTime.Now;
+                if (baseEntity.State == EntityState.Insert)
+                {
+                    baseEntity.created_date = DateTime.Now;
+                }
                 baseEntity.modified_date = DateTime.Now;
             }
         }

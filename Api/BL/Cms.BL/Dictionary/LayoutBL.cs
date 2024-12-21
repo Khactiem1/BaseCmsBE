@@ -1,4 +1,5 @@
 ﻿using Cms.Core.Common;
+using Cms.Core.Common.Extension;
 using Cms.DL;
 using Cms.Model;
 using CMS.Core.Database;
@@ -38,7 +39,7 @@ namespace Cms.BL
         /// <returns></returns>
         public async Task<Layout> GetLayoutByTag(string tag)
         {
-            var sql = "select * from layout where layout_tag = @v_layout_tag limit 1";
+            var sql = $"select * from {typeof(Layout).GetTableNameOnly()} where layout_tag = @v_layout_tag limit 1";
             Dictionary<string, object> param = new Dictionary<string, object>();
             param.Add("v_layout_tag", tag);
             var result = await _databaseService.QueryUsingCommandText<Layout>(sql, param);
@@ -52,7 +53,7 @@ namespace Cms.BL
         /// <returns></returns>
         public async Task UpdateLayoutByTag(string tag, Layout layout)
         {
-            var sql = "Update layout set config = CAST(@v_config AS JSON) where layout_tag = @v_layout_tag";
+            var sql = $"Update {typeof(Layout).GetTableNameOnly()} set config = CAST(@v_config AS JSON) where layout_tag = @v_layout_tag";
             Dictionary<string, object> param = new Dictionary<string, object>();
             param.Add("v_layout_tag", tag);
             param.Add("v_config", layout.config);

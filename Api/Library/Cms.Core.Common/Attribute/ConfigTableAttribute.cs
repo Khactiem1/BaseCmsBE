@@ -26,13 +26,19 @@ namespace Cms.Core.Common
         /// </summary>
         public string? FieldUnique { get; set; }
 
+        /// <summary>
+        /// Schema của bảng
+        /// </summary>
+        public string Schema { get; set; }
+
         #region Contructor
 
-        public ConfigTableAttribute(string tableName = "", string fieldUnique = "", string viewName = "")
+        public ConfigTableAttribute(string tableName = "", string fieldUnique = "", string viewName = "", string schema = "")
         {
             TableName = tableName;
             ViewName = viewName;
             FieldUnique = fieldUnique;
+            Schema = schema;
         }
 
         #endregion

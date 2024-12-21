@@ -12,6 +12,19 @@ namespace Cms.BL
     public interface IBaseBL<T>
     {
         /// <summary>
+        /// Khôi phục dữ liệu đã bị xoá theo mã
+        /// </summary>
+        /// <param name="model"></param>
+        /// <returns></returns>
+        public Task<ServiceResponse> RestoreDataDelete(BaseEntity baseEntitys);
+
+        /// <summary>
+        /// Thực hiện xuất excel dữ liệu
+        /// </summary>
+        /// <returns></returns>
+        public Task<Stream> ExportData(ExportDataParam param);
+
+        /// <summary>
         /// Thực hiện Paging data
         /// </summary>
         /// <param name="pagingRequest"></param>

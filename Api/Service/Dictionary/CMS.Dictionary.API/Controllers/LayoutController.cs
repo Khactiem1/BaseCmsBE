@@ -14,7 +14,7 @@ namespace CMS.Dictionary.API
     /// Tầng Controller cấu hình layout
     /// </summary>
     /// @author nktiem 24/11/2024
-    //[Authorize]
+    [Authorize]
     public class LayoutController : BaseController<Layout>
     {
         #region Field

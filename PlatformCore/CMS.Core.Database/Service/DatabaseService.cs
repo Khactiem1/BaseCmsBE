@@ -135,7 +135,7 @@ namespace CMS.Core.Database.Service
         /// @author nktiem 25.11.2024
         public void GenerateSelectByID(ref string commandText, ref Dictionary<string, object> dicParam, Type modelType, Guid id, string columns = "*")
         {
-            commandText = $"SELECT {columns} FROM {modelType.GetTableNameOnly()} WHERE is_deleted = false AND {modelType.GetPrimaryKeyFieldName()} = @IDValue;";
+            commandText = $"SELECT {columns} FROM {modelType.GetTableNameOnly()} WHERE (is_deleted = FALSE OR is_deleted is null) AND {modelType.GetPrimaryKeyFieldName()} = @IDValue;";
             dicParam.Add("@IDValue", id);
         }
     }

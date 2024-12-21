@@ -4,7 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Cms.Model.Enum
+namespace Cms.Model
 {
     /// <summary>
     /// Enum state save record
@@ -35,5 +35,21 @@ namespace Cms.Model.Enum
         /// Togle active bản ghi
         /// </summary>
         Inactive = 4,
+    }
+
+    /// <summary>
+    /// EnumValidateResult
+    /// </summary>
+    public enum EnumValidateResult : int
+    {
+        /// <summary>
+        /// Duplicate Dữ liệu
+        /// </summary>
+        Duplicate = 1,
+
+        /// <summary>
+        /// Duplicate với dữ liệu đã bị xoá
+        /// </summary>
+        DuplicateDelete = 2,
     }
 }
