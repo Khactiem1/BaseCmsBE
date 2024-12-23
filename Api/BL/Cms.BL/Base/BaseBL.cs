@@ -296,27 +296,24 @@ namespace Cms.BL
                 int countDel = 0;
                 foreach (var baseEntity in baseEntitys)
                 {
-                    if(baseEntity.State == EntityState.Insert)
+                    if (baseEntity.State == EntityState.Insert || baseEntity.State == EntityState.Update)
                     {
-                        if(count > 0) commandCheckDuplicate.Append("OR ");
+                        if (count > 0) commandCheckDuplicate.Append("OR ");
                         if (countDel > 0) commandCheckDuplicateDel.Append("OR ");
-                        commandCheckDuplicate.Append($"({fieldUnique} = @v_{fieldUnique}{count} and (is_deleted = false OR is_deleted is null)) ");
                         commandCheckDuplicateDel.Append($"({fieldUnique} = @v_{fieldUnique}{countDel}_del and is_deleted = true) ");
-                        param.Add($"v_{fieldUnique}{count}", baseEntity.GetValue(fieldUnique));
                         param.Add($"v_{fieldUnique}{countDel}_del", baseEntity.GetValue(fieldUnique));
+                        if (baseEntity.State == EntityState.Insert)
+                        {
+                            commandCheckDuplicate.Append($"({fieldUnique} = @v_{fieldUnique}{count} and (is_deleted = false OR is_deleted is null)) ");
+                        }
+                        else
+                        {
+                            commandCheckDuplicate.Append($"({fieldUnique} = @v_{fieldUnique}{count} and {columnKey} <> @v_{columnKey}{count} and (is_deleted = false OR is_deleted is null)) ");
+                            param.Add($"v_{columnKey}{count}", baseEntity.GetValue(columnKey));
+                        }
+                        param.Add($"v_{fieldUnique}{count}", baseEntity.GetValue(fieldUnique));
                         count++;
                         countDel++;
-                    }
-                    else if (baseEntity.State == EntityState.Update)
-                    {
-                        if (count > 0)
-                        {
-                            commandCheckDuplicate.Append("OR ");
-                        }
-                        commandCheckDuplicate.Append($"({fieldUnique} = @v_{fieldUnique}{count} and {columnKey} <> @v_{columnKey}{count} and (is_deleted = false OR is_deleted is null)) ");
-                        param.Add($"v_{fieldUnique}{count}", baseEntity.GetValue(fieldUnique));
-                        param.Add($"v_{columnKey}{count}", baseEntity.GetValue(columnKey));
-                        count++;
                     }
                 }
                 if (count > 0)
