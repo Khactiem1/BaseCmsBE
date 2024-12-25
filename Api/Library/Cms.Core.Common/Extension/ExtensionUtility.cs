@@ -45,7 +45,10 @@ namespace Cms.Core.Common.Extension
             {
                 viewName = table?.ViewName;
             }
-            viewName = table?.TableName;
+            else
+            {
+                viewName = table?.TableName;
+            }
             if (string.IsNullOrEmpty(schema))
             {
                 return viewName;
